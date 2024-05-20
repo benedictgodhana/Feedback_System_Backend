@@ -9,12 +9,7 @@ use App\Http\Controllers\FeedbackCategoryController;
 use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\FeedbackExportController;
 use App\Http\Controllers\NotificationController;
-
-
-
-
-
-
+use App\Models\FeedbackCategory;
 
 /*
 |--------------------------------------------------------------------------
@@ -59,6 +54,21 @@ Route::get('/notifications', [NotificationController::class,'index']);
 Route::get('/notifications/count', [NotificationController::class, 'getUnreadNotificationCount']);
 Route::post('/notifications/{id}/mark-as-read', [NotificationController::class,'markAsRead']);
 Route::get('feedback/categories/count', [FeedbackController::class, 'getFeedbackCategoriesCount']);
+Route::get('/feedbackcategories_all', [FeedbackController::class,'feedbackCategories']);
+Route::get('/feedback-categories/{categoryId}/feedback_sub_categories', [FeedbackCategoryController::class, 'fetchSubcategories']);
+Route::get('/subcategories', [FeedbackCategoryController::class, 'subcategories']);
+Route::post('/feedback-subcategories', [FeedbackCategoryController::class,'store_subcategories']);
+Route::get('/feedbacks/{id}', [FeedbackController::class, 'show']);
+Route::middleware('auth:sanctum')->get('/Authuser', [UserController::class,'getUserData']);
+Route::get('/feedback-categories/{categoryId}/subcategories', [FeedbackCategoryController::class,'getSubcategories']);
+Route::post('/filteredfeedback/export', [FeedbackController::class,'exportFilteredFeedback'])->name('feedback.export');
+Route::post('/feedback/filter', [FeedbackController::class,'filterFeedback']);
+Route::get('/filtered-feedbacks', [FeedbackController::class,'getFilteredFeedbacks']);
+Route::post('/feedback/filter/export', [FeedbackController::class,'exportFilteredFeedback'])->name('feedback.filter.export');
+
+
+
+
 
 
 

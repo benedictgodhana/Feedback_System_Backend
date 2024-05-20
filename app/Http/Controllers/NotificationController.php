@@ -3,18 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Models\Notification;
+use App\Models\Feedback;
+
 use Illuminate\Http\Request;
 
 class NotificationController extends Controller
 {
     public function index()
-    {
-        // Fetch notifications from the database
-        $notifications = Notification::all();
+{
+    // Fetch notifications along with their associated feedback data
+    $notifications = Notification::with('feedback')->get();
 
-        // Return notifications as JSON response
-        return response()->json($notifications);
-    }
+    return response()->json($notifications);
+}
+
 
     public function getUnreadNotificationCount()
     {
@@ -31,4 +33,7 @@ class NotificationController extends Controller
 
         return response()->json(['message' => 'Notification marked as read']);
     }
+
+
+
 }

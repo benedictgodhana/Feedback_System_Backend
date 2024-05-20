@@ -9,19 +9,19 @@ class FeedbackCategory extends Model
 {
     use HasFactory;
 
-    public function category()
-    {
-        return $this->belongsTo(FeedbackCategory::class);
-    }
     protected $fillable = [
         'name',
         'description'
     ];
 
-    // In Category model
-public function feedbacks()
-{
-    return $this->hasMany(\App\Models\Feedback::class, 'category_id');
-}
+    // Relationship to Feedback
+    public function feedbacks()
+    {
+        return $this->hasMany(Feedback::class, 'category_id');
+    }
 
+    public function subcategories()
+    {
+        return $this->hasMany(Subcategory::class);
+    }
 }

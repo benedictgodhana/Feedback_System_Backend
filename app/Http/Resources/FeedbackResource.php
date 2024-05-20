@@ -21,6 +21,8 @@ class FeedbackResource extends JsonResource
         'email' => $this->email,
         'feedback' => $this->feedback,
         'category_name' => $this->category->name, // Assuming 'category' is loaded
+        'subcategory_name' => $this->subcategory->name, // Assuming 'category' is loaded
+
     ];
 }
 }

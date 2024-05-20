@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 
 class UserController extends Controller
 {
@@ -170,6 +171,25 @@ public function getSuperAdminCount()
         return response()->json(['message' => 'Password changed successfully'], 200);
     }
 
+
+    public function getUserData(Request $request)
+    {
+        // Fetch the authenticated user using Sanctum's Auth facade
+        $user = Auth::user();
+
+        // Retrieve additional details from the UserDetails model if available
+
+        // Merge user details into the user object
+        $userData = [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            // Add more user fields as needed
+        ];
+
+        // Return the user data in the response
+        return response()->json($userData);
+    }
 
 
 }
