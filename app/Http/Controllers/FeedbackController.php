@@ -21,14 +21,12 @@ class FeedbackController extends Controller
         'subject' => 'required',
         'email' => 'nullable|email',
         'feedback' => 'required',
-        'other_category' => 'nullable'
     ]);
 
     // Create a new feedback instance
     $feedback = new Feedback();
     $feedback->category_id = $request->category_id;
     $feedback->subcategory_id = $request->subcategory_id; // Save subcategory_id
-    $feedback->other_category = $request->other_category;
     $feedback->subject = $request->subject;
     $feedback->name = $request->name;
     $feedback->email = $request->email;
