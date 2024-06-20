@@ -4,9 +4,12 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Feedback;
+use App\Mail\FeedbackReceived;
 use App\Models\FeedbackCategory; // Import the FeedbackCategory model if needed
 use App\Models\Subcategory; // Import the FeedbackCategory model if needed
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\FeedbackAcknowledgement;
 use App\Events\FeedbackCreated; // Import FeedbackCreated event
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\FilteredFeedbackExport;
@@ -15,7 +18,7 @@ class FeedbackController extends Controller
 {
     public function store(Request $request)
 {
-    $request->validate([
+    $validatedData = $request->validate([
         'category_id' => 'required|exists:feedback_categories,id',
         'subcategory_id' => 'required|exists:subcategories,id', // Validate subcategory_id
         'subject' => 'required',
@@ -25,23 +28,28 @@ class FeedbackController extends Controller
 
     // Create a new feedback instance
     $feedback = new Feedback();
-    $feedback->category_id = $request->category_id;
-    $feedback->subcategory_id = $request->subcategory_id; // Save subcategory_id
-    $feedback->subject = $request->subject;
+    $feedback->category_id = $validatedData['category_id'];
+    $feedback->subcategory_id = $validatedData['subcategory_id']; // Save subcategory_id
+    $feedback->subject = $validatedData['subject'];
     $feedback->name = $request->name;
-    $feedback->email = $request->email;
-    $feedback->feedback = $request->feedback;
+    $feedback->email = $validatedData['email'];
+    $feedback->feedback = $validatedData['feedback'];
     $feedback->save();
+
+    $recipientEmail = 'ilabfeedback@strathmore.edu';
+
+    Mail::to($recipientEmail)->send(new FeedbackReceived($feedback));
+
+    // Send email notification to user if an email was provided
+    if ($validatedData['email']) {
+        Mail::to($validatedData['email'])->send(new FeedbackAcknowledgement($feedback));
+    }
 
     // Dispatch the FeedbackCreated event
     event(new FeedbackCreated($feedback));
 
-    // Return a JSON response with success message
-    return response()->json([
-        'message' => 'Feedback submitted successfully',
-    ], 201);
+    return back()->with('success', 'Thank you for your feedback! It has been submitted successfully. Your feedback will be reviewed shortly.');
 }
-
 
 
 public function index()
