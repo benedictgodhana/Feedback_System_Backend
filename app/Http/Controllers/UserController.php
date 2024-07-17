@@ -41,42 +41,7 @@ public function getSuperAdminCount()
         return response()->json(['users' => $users]);
     }
 
-    public function updateUser(Request $request, $id)
-    {
-        // Validate the request data
-        $validatedData = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $id,
-            'role' => 'required|string|exists:roles,name', // Check if the role exists
-            'password' => 'nullable|string|min:6', // Allow password to be nullable and minimum length 6
-            // Add more validation rules as needed for other fields
-        ]);
 
-        // Find the user by id
-        $user = User::findOrFail($id);
-
-        // Update the user data
-        $user->update([
-            'name' => $validatedData['name'],
-            'email' => $validatedData['email'],
-            // Update other fields as needed
-        ]);
-
-        // Update password if provided
-        if (isset($validatedData['password'])) {
-            $user->update([
-                'password' => bcrypt($validatedData['password']), // Hash the password
-            ]);
-        }
-
-        // Find the role by name
-        $role = Role::where('name', $validatedData['role'])->first();
-
-        // Sync the user's roles
-        $user->syncRoles([$role]);
-
-        return response()->json(['message' => 'User updated successfully']);
-    }
 
     public function store(Request $request)
     {
@@ -131,45 +96,42 @@ public function getSuperAdminCount()
 
 
     public function updateProfile(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,' . auth()->id(),
-            'role' => 'required', // Ensure role field is required
-            // Add more fields as needed
-        ]);
+{
+    $user = Auth::user();
 
-        $user = auth()->user();
+    if (!$user) {
+        return response()->json(['message' => 'User not authenticated'], 401);
+    }
+
+    $request->validate([
+        'name' => 'sometimes|required|string|max:255',
+        'email' => 'sometimes|required|string|email|max:255|unique:users,email,' . $user->id,
+        'old_password' => 'sometimes|required_with:new_password',
+        'new_password' => 'sometimes|required_with:old_password|min:8',
+    ]);
+
+    if ($request->filled('name')) {
         $user->name = $request->name;
+    }
+    if ($request->filled('email')) {
         $user->email = $request->email;
-        $user->save();
-
-        // Assign the role to the user
-        $user->assignRole($request->role);
-
-        return response()->json(['message' => 'Profile updated successfully'], 200);
     }
-
-
-    public function changePassword(Request $request)
-    {
-        $request->validate([
-            'old_password' => 'required|string',
-            'new_password' => 'required|string|min:8|different:old_password',
-            'confirm_password' => 'required|string|same:new_password',
-        ]);
-
-        $user = auth()->user();
-
+    if ($request->filled('old_password')) {
         if (!Hash::check($request->old_password, $user->password)) {
-            return response()->json(['error' => 'The provided old password does not match our records'], 422);
+            return response()->json(['errors' => ['old_password' => ['The provided old password does not match our records']]], 422);
         }
-
         $user->password = Hash::make($request->new_password);
-        $user->save();
-
-        return response()->json(['message' => 'Password changed successfully'], 200);
     }
+
+    $user->save();
+
+    return response()->json(['message' => 'User profile updated successfully'], 200);
+}
+
+
+
+
+
 
 
     public function getUserData(Request $request)
@@ -189,6 +151,26 @@ public function getSuperAdminCount()
 
         // Return the user data in the response
         return response()->json($userData);
+    }
+
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'old_password' => 'required|string',
+            'new_password' => 'required|string|min:8|different:old_password',
+            'confirm_password' => 'required|string|same:new_password',
+        ]);
+
+        $user = auth()->user();
+
+        if (!Hash::check($request->old_password, $user->password)) {
+            return response()->json(['error' => 'The provided old password does not match our records'], 422);
+        }
+
+        $user->password = Hash::make($request->new_password);
+        $user->save();
+
+        return response()->json(['message' => 'Password changed successfully'], 200);
     }
 
 

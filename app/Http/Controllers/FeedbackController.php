@@ -8,121 +8,123 @@ use App\Mail\FeedbackReceived;
 use App\Models\FeedbackCategory; // Import the FeedbackCategory model if needed
 use App\Models\Subcategory; // Import the FeedbackCategory model if needed
 use Carbon\Carbon;
+
 use Illuminate\Support\Facades\Mail;
 use App\Mail\FeedbackAcknowledgement;
 use App\Events\FeedbackCreated; // Import FeedbackCreated event
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\FilteredFeedbackExport;
+use App\Exports\FeedbackExport;
 
 class FeedbackController extends Controller
 {
     public function store(Request $request)
-{
-    $validatedData = $request->validate([
-        'category_id' => 'required|exists:feedback_categories,id',
-        'subcategory_id' => 'required|exists:subcategories,id', // Validate subcategory_id
-        'subject' => 'required',
-        'email' => 'nullable|email',
-        'feedback' => 'required',
-    ]);
+    {
+        $validatedData = $request->validate([
+            'category_id' => 'required|exists:feedback_categories,id',
+            'subcategory_id' => 'required|exists:subcategories,id', // Validate subcategory_id
+            'subject' => 'required',
+            'email' => 'nullable|email',
+            'feedback' => 'required',
+        ]);
 
-    // Create a new feedback instance
-    $feedback = new Feedback();
-    $feedback->category_id = $validatedData['category_id'];
-    $feedback->subcategory_id = $validatedData['subcategory_id']; // Save subcategory_id
-    $feedback->subject = $validatedData['subject'];
-    $feedback->name = $request->name;
-    $feedback->email = $validatedData['email'];
-    $feedback->feedback = $validatedData['feedback'];
-    $feedback->save();
+        // Create a new feedback instance
+        $feedback = new Feedback();
+        $feedback->category_id = $validatedData['category_id'];
+        $feedback->subcategory_id = $validatedData['subcategory_id']; // Save subcategory_id
+        $feedback->subject = $validatedData['subject'];
+        $feedback->name = $request->name;
+        $feedback->email = $validatedData['email'];
+        $feedback->feedback = $validatedData['feedback'];
+        $feedback->save();
 
-    $recipientEmail = 'ilabfeedback@strathmore.edu';
+        $recipientEmail = 'ilabfeedback@strathmore.edu';
 
-    Mail::to($recipientEmail)->send(new FeedbackReceived($feedback));
+        Mail::to($recipientEmail)->send(new FeedbackReceived($feedback));
 
-    // Send email notification to user if an email was provided
-    if ($validatedData['email']) {
-        Mail::to($validatedData['email'])->send(new FeedbackAcknowledgement($feedback));
+        // Send email notification to user if an email was provided
+        if ($validatedData['email']) {
+            Mail::to($validatedData['email'])->send(new FeedbackAcknowledgement($feedback));
+        }
+
+        // Dispatch the FeedbackCreated event
+        event(new FeedbackCreated($feedback));
+
+        return back()->with('success', 'Thank you for your feedback! It has been submitted successfully. Your feedback will be reviewed shortly.');
     }
 
-    // Dispatch the FeedbackCreated event
-    event(new FeedbackCreated($feedback));
 
-    return back()->with('success', 'Thank you for your feedback! It has been submitted successfully. Your feedback will be reviewed shortly.');
-}
+    public function index()
+    {
+        $feedbacks = Feedback::with('category', 'subcategory')->get()->map(function ($feedback) {
+            // Load the 'category' relationship
+            $feedback->load('category', 'subcategory');
 
-
-public function index()
-{
-    $feedbacks = Feedback::with('category','subcategory')->get()->map(function ($feedback) {
-        // Load the 'category' relationship
-        $feedback->load('category','subcategory');
-
-        // Access the category name safely
-        $feedback->category_id = $feedback->category ? $feedback->category->name : null;
-        $feedback->subcategory_id = $feedback->subcategory ? $feedback->subcategory->name : null;
+            // Access the category name safely
+            $feedback->category_id = $feedback->category ? $feedback->category->name : null;
+            $feedback->subcategory_id = $feedback->subcategory ? $feedback->subcategory->name : null;
 
 
-        // Convert created_at to Carbon instance and format it to AM/PM format
-        $feedback->created_at = Carbon::parse($feedback->created_at)->format('Y-m-d h:i A');
+            // Convert created_at to Carbon instance and format it to AM/PM format
+            $feedback->created_at = Carbon::parse($feedback->created_at)->format('Y-m-d h:i A');
 
-        // Optionally remove the category object to clean up the response
-        unset($feedback->category);
+            // Optionally remove the category object to clean up the response
+            unset($feedback->category);
 
-        return $feedback;
-    });
+            return $feedback;
+        });
 
-    return response()->json($feedbacks);
-}
-
-
-
-
-
-public function getFeedbackCount()
-{
-    // Get feedback count grouped by category
-    $feedbackCounts = Feedback::selectRaw('feedback.category_id, COUNT(*) as count')
-                              ->join('feedback_categories', 'feedback.category_id', '=', 'feedback_categories.id')
-                              ->groupBy('feedback.category_id')
-                              ->get();
-
-    // Prepare response data
-    $countsByCategory = [];
-
-    foreach ($feedbackCounts as $feedbackCount) {
-        // Assuming you have a 'name' attribute in the FeedbackCategory model
-        $categoryName = $feedbackCount->category_name; // Access category name from the joined table
-        $countsByCategory[$categoryName] = $feedbackCount->count;
+        return response()->json($feedbacks);
     }
 
-    return $countsByCategory;
-}
 
 
-public function getFeedbackCounts(Request $request)
-{
-    // Get today's feedback count
-    $todayFeedbackCount = Feedback::whereDate('created_at', today())->count();
 
-    // Get this week's feedback count
-    $startOfWeek = now()->startOfWeek();
-    $endOfWeek = now()->endOfWeek();
-    $thisWeekFeedbackCount = Feedback::whereBetween('created_at', [$startOfWeek, $endOfWeek])->count();
 
-    // Get this month's feedback count
-    $startOfMonth = now()->startOfMonth();
-    $endOfMonth = now()->endOfMonth();
-    $thisMonthFeedbackCount = Feedback::whereBetween('created_at', [$startOfMonth, $endOfMonth])->count();
+    public function getFeedbackCount()
+    {
+        // Get feedback count grouped by category
+        $feedbackCounts = Feedback::selectRaw('feedback.category_id, COUNT(*) as count')
+            ->join('feedback_categories', 'feedback.category_id', '=', 'feedback_categories.id')
+            ->groupBy('feedback.category_id')
+            ->get();
 
-    return response()->json([
-        'today' => $todayFeedbackCount,
-        'this_week' => $thisWeekFeedbackCount,
-        'this_month' => $thisMonthFeedbackCount
-    ]);
-}
+        // Prepare response data
+        $countsByCategory = [];
 
-public function updateStatus(Request $request, $id)
+        foreach ($feedbackCounts as $feedbackCount) {
+            // Assuming you have a 'name' attribute in the FeedbackCategory model
+            $categoryName = $feedbackCount->category_name; // Access category name from the joined table
+            $countsByCategory[$categoryName] = $feedbackCount->count;
+        }
+
+        return $countsByCategory;
+    }
+
+
+    public function getFeedbackCounts(Request $request)
+    {
+        // Get today's feedback count
+        $todayFeedbackCount = Feedback::whereDate('created_at', today())->count();
+
+        // Get this week's feedback count
+        $startOfWeek = now()->startOfWeek();
+        $endOfWeek = now()->endOfWeek();
+        $thisWeekFeedbackCount = Feedback::whereBetween('created_at', [$startOfWeek, $endOfWeek])->count();
+
+        // Get this month's feedback count
+        $startOfMonth = now()->startOfMonth();
+        $endOfMonth = now()->endOfMonth();
+        $thisMonthFeedbackCount = Feedback::whereBetween('created_at', [$startOfMonth, $endOfMonth])->count();
+
+        return response()->json([
+            'today' => $todayFeedbackCount,
+            'this_week' => $thisWeekFeedbackCount,
+            'this_month' => $thisMonthFeedbackCount
+        ]);
+    }
+
+    public function updateStatus(Request $request, $id)
     {
         $feedback = Feedback::find($id);
 
@@ -146,6 +148,7 @@ public function updateStatus(Request $request, $id)
 
     public function feedbackCategories(Request $request)
     {
+
         $query = Feedback::query();
 
         // Filter by category if category parameter is provided
@@ -218,44 +221,67 @@ public function updateStatus(Request $request, $id)
         return Excel::download(new FilteredFeedbackExport($filteredFeedback), 'filtered_feedback.xlsx');
     }
 
-        public function filterFeedback(Request $request)
-        {
-            // Retrieve filter parameters from the request
-            $search = $request->input('search');
-            $category = $request->input('category');
-            $subcategory = $request->input('subcategory');
-            $startDate = $request->input('startDate');
-            $endDate = $request->input('endDate');
+    public function filterFeedback(Request $request)
+    {
+        // Retrieve filter parameters from the request
+        $search = $request->input('search');
+        $category = $request->input('category');
+        $subcategory = $request->input('subcategory');
+        $startDate = $request->input('startDate');
+        $endDate = $request->input('endDate');
 
-            // Query to retrieve filtered feedback records
-            $query = Feedback::query()->with('category', 'subcategory'); // Eager load category and subcategory relationships
+        // Query to retrieve filtered feedback records
+        $query = Feedback::query()->with('category', 'subcategory'); // Eager load category and subcategory relationships
 
-            // Apply filters
-            if ($search) {
-                $query->where('subject', 'like', '%' . $search . '%');
-            }
-
-            if ($category) {
-                $query->where('category_id', $category);
-            }
-
-            if ($subcategory) {
-                $query->where('subcategory_id', $subcategory);
-            }
-
-            if ($startDate) {
-                $query->whereDate('created_at', '>=', $startDate);
-            }
-
-            if ($endDate) {
-                $query->whereDate('created_at', '<=', $endDate);
-            }
-
-            // Retrieve filtered records
-            $filteredFeedback = $query->get();
-
-            // Return the filtered records
-            return response()->json($filteredFeedback);
+        // Apply filters
+        if ($search) {
+            $query->where('subject', 'like', '%' . $search . '%');
         }
 
-   }
+        if ($category) {
+            $query->where('category_id', $category);
+        }
+
+        if ($subcategory) {
+            $query->where('subcategory_id', $subcategory);
+        }
+
+        if ($startDate) {
+            $query->whereDate('created_at', '>=', $startDate);
+        }
+
+        if ($endDate) {
+            $query->whereDate('created_at', '<=', $endDate);
+        }
+
+        // Retrieve filtered records
+        $filteredFeedback = $query->get();
+
+        // Return the filtered records
+        return response()->json($filteredFeedback);
+    }
+
+
+    public function getSubcategories($categoryId)
+    {
+
+        $subcategories = SubCategory::where('feedback_category_id', $categoryId)->get();
+        return response()->json($subcategories);
+    }
+
+    public function getFeedbackSubcategories($category)
+    {
+
+        $subcategories = SubCategory::whereHas('category', function($query) use($category) {
+            $query->where('name', $category);
+        })->get();
+
+        return response()->json($subcategories);
+    }
+
+    public function export(Request $request)
+    {
+        $feedbackData = $request->input('feedback');
+        return Excel::download(new FeedbackExport($feedbackData), 'feedback.xlsx');
+    }
+}

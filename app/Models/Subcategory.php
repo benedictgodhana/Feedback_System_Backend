@@ -20,7 +20,7 @@ class Subcategory extends Model
 
     public function category()
     {
-        return $this->belongsTo(FeedbackCategory::class);
+        return $this->belongsTo(FeedbackCategory::class, 'feedback_category_id');
     }
 
 

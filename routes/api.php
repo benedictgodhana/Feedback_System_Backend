@@ -25,13 +25,17 @@ use App\Models\FeedbackCategory;
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
-
+// routes/api.php
+Route::post('/export', [FeedbackController::class, 'export']);
+Route::patch('/feedbacks/{id}', [FeedbackController::class, 'updateStatus']);
 Route::get('/users/count', [UserController::class, 'getUserCount']);
 Route::get('/Admin/count', [UserController::class, 'getAdminCount']);
 Route::get('/SuperAdmin/count', [UserController::class, 'getSuperAdminCount']);
+Route::get('/feedback-categories/{category}/feedback_sub_categories', [FeedbackController::class, 'getSubcategories']);
+Route::get('/categories/{category}/feedback_sub_categories', [FeedbackController::class, 'getFeedbackSubcategories']);
 
 Route::get('/users', [UserController::class, 'getAllUsers']);
-Route::put('/users/{id}', [UserController::class, 'updateUser']);
+Route::put('/users/{id}', [UserController::class, 'updateProfile'])->middleware('auth:sanctum');
 Route::put('/users/update-profile', [UserController::class, 'updateProfile'])->middleware('auth:sanctum');
 Route::put('/users/change-password', [UserController::class, 'changePassword'])->middleware('auth:sanctum');
 Route::get('/roles', [RoleController::class, 'index']);
@@ -55,12 +59,10 @@ Route::get('/notifications/count', [NotificationController::class, 'getUnreadNot
 Route::post('/notifications/{id}/mark-as-read', [NotificationController::class,'markAsRead']);
 Route::get('feedback/categories/count', [FeedbackController::class, 'getFeedbackCategoriesCount']);
 Route::get('/feedbackcategories_all', [FeedbackController::class,'feedbackCategories']);
-Route::get('/feedback-categories/{categoryId}/feedback_sub_categories', [FeedbackCategoryController::class, 'fetchSubcategories']);
 Route::get('/subcategories', [FeedbackCategoryController::class, 'subcategories']);
 Route::post('/feedback-subcategories', [FeedbackCategoryController::class,'store_subcategories']);
 Route::get('/feedbacks/{id}', [FeedbackController::class, 'show']);
 Route::middleware('auth:sanctum')->get('/Authuser', [UserController::class,'getUserData']);
-Route::get('/feedback-categories/{categoryId}/subcategories', [FeedbackCategoryController::class,'getSubcategories']);
 Route::post('/filteredfeedback/export', [FeedbackController::class,'exportFilteredFeedback'])->name('feedback.export');
 Route::post('/feedback/filter', [FeedbackController::class,'filterFeedback']);
 Route::get('/filtered-feedbacks', [FeedbackController::class,'getFilteredFeedbacks']);
